@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VR Headset Visual Adjustment — Eye Power Simulator</title>
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+  <style>
+    /* ── Reset & base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0b0e17;
+      color: #e0e6f0;
+      overflow-x: hidden;
+    }
+
+    /* ── Layout grid ─────────────────────────────────── */
+    .app-wrapper {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      grid-template-rows: auto 1fr;
+      height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────── */
+    header {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, #0f1729 0%, #1a1040 100%);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1px solid #2a2f4a;
+      z-index: 100;
+    }
+    header .logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #6c63ff, #00d4ff);
+      border-radius: 10px;
+      display: grid; place-items: center;
+      font-size: 20px;
+    }
+    header h1 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      background: linear-gradient(90deg, #6c63ff, #00d4ff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    header .subtitle { font-size: 0.75rem; color: #7a82a6; margin-top: 1px; }
+
+    /* ── Side Panel ──────────────────────────────────── */
+    .panel {
+      background: #111627;
+      border-right: 1px solid #1f2544;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .panel::-webkit-scrollbar { width: 5px; }
+    .panel::-webkit-scrollbar-thumb { background: #2a2f4a; border-radius: 8px; }
+
+    .card {
+      background: #161c30;
+      border: 1px solid #232948;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .card-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: #5d6590;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    /* ── Toggle (Myopia / Hypermetropia) ─────────────── */
+    .toggle-group {
+      display: flex;
+      background: #0d1120;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #232948;
+    }
+    .toggle-btn {
+      flex: 1;
+      padding: 10px 6px;
+      border: none;
+      background: transparent;
+      color: #7a82a6;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+    .toggle-btn.active-myopia {
+      background: linear-gradient(135deg, #ff4d6d, #c9184a);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(255,77,109,0.25);
+    }
+    .toggle-btn.active-hyper {
+      background: linear-gradient(135deg, #00b4d8, #0077b6);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(0,180,216,0.25);
+    }
+
+    /* ── Slider ───────────────────────────────────────── */
+    .slider-wrap { margin-top: 6px; }
+    .slider-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.68rem; color: #5d6590; margin-bottom: 4px;
+    }
+    input[type=range] {
+      -webkit-appearance: none; appearance: none; width: 100%;
+      height: 6px; border-radius: 4px;
+      background: #1a2040;
+      outline: none;
+      transition: background 0.3s;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6c63ff, #00d4ff);
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(108,99,255,0.5);
+      transition: transform 0.2s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+    .power-display {
+      text-align: center;
+      margin: 10px 0 4px;
+    }
+    .power-value {
+      font-size: 2.2rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.3s;
+    }
+    .power-unit { font-size: 0.85rem; color: #5d6590; margin-left: 2px; }
+    .power-value.myopia-color { color: #ff4d6d; }
+    .power-value.hyper-color { color: #00d4ff; }
+
+    .manual-input-row {
+      display: flex; gap: 8px; align-items: center; margin-top: 8px;
+    }
+    .manual-input-row input[type=number] {
+      flex: 1;
+      background: #0d1120;
+      border: 1px solid #232948;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #e0e6f0;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border 0.3s;
+    }
+    .manual-input-row input[type=number]:focus { border-color: #6c63ff; }
+    .manual-input-row span { font-size: 0.8rem; color: #5d6590; }
+
+    /* ── Eye-specific inputs ─────────────────────────── */
+    .eye-section { margin-top: 4px; }
+    .eye-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.82rem; font-weight: 600; margin-bottom: 6px;
+    }
+    .eye-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+    .eye-dot.left { background: #6c63ff; }
+    .eye-dot.right { background: #00d4ff; }
+    .eye-badge { font-size: 0.7rem; color: #5d6590; font-weight: 400; margin-left: auto; }
+
+    /* ── Parameter Readouts ───────────────────────────── */
+    .param-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .param-item {
+      background: #0d1120;
+      border-radius: 8px;
+      padding: 10px;
+      border: 1px solid #1a2040;
+    }
+    .param-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #5d6590;
+      margin-bottom: 4px;
+    }
+    .param-val {
+      font-size: 1rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Buttons ──────────────────────────────────────── */
+    .btn-row {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .btn {
+      flex: 1;
+      padding: 10px 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-reset {
+      background: #1a2040;
+      color: #7a82a6;
+      border: 1px solid #232948;
+    }
+    .btn-reset:hover { background: #232948; color: #e0e6f0; }
+    .btn-comfort {
+      background: linear-gradient(135deg, #6c63ff, #00d4ff);
+      color: #fff;
+    }
+    .btn-comfort:hover { opacity: 0.88; }
+    .btn-comfort.active {
+      background: linear-gradient(135deg, #00d4ff, #38ef7d);
+      box-shadow: 0 0 16px rgba(56,239,125,0.3);
+    }
+
+    /* ── Separate-eye toggle ─────────────────────────── */
+    .switch-row {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .switch-row label { font-size: 0.8rem; color: #7a82a6; }
+    .switch {
+      position: relative;
+      width: 44px; height: 24px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .slider-track {
+      position: absolute; inset: 0;
+      background: #1a2040;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+      border: 1px solid #232948;
+    }
+    .switch .slider-track::after {
+      content: '';
+      position: absolute;
+      width: 18px; height: 18px;
+      left: 2px; bottom: 2px;
+      background: #5d6590;
+      border-radius: 50%;
+      transition: all 0.3s;
+    }
+    .switch input:checked + .slider-track {
+      background: #6c63ff;
+      border-color: #6c63ff;
+    }
+    .switch input:checked + .slider-track::after {
+      transform: translateX(20px);
+      background: #fff;
+    }
+
+    /* ── 3D Viewport ─────────────────────────────────── */
+    .viewport {
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(ellipse at center, #131832 0%, #0b0e17 70%);
+    }
+    .viewport a-scene {
+      width: 100%; height: 100%;
+    }
+
+    /* ── Overlay HUD on viewport ─────────────────────── */
+    .hud-overlay {
+      position: absolute;
+      bottom: 16px; left: 50%;
+      transform: translateX(-50%);
+      display: flex; gap: 10px;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .hud-chip {
+      background: rgba(17,22,39,0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid #232948;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .hud-chip .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #38ef7d;
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── Lens simulation overlay ─────────────────────── */
+    .lens-overlay {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 480px; height: 260px;
+      display: flex;
+      gap: 16px;
+      z-index: 40;
+      pointer-events: none;
+    }
+    .lens-view {
+      flex: 1;
+      border-radius: 50%;
+      border: 2px solid rgba(108,99,255,0.25);
+      overflow: hidden;
+      position: relative;
+      transition: all 0.4s ease;
+    }
+    .lens-view .lens-inner {
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.5) 100%);
+      transition: all 0.4s ease;
+    }
+    .lens-label {
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* ── Preview canvas (focal simulation) ───────────── */
+    #focalCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    /* ── Info tooltip ─────────────────────────────────── */
+    .info-bar {
+      position: absolute;
+      top: 14px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      background: rgba(17,22,39,0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid #232948;
+      border-radius: 10px;
+      padding: 8px 18px;
+      font-size: 0.78rem;
+      color: #7a82a6;
+      text-align: center;
+      transition: all 0.4s;
+    }
+    .info-bar strong { color: #e0e6f0; }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 860px) {
+      .app-wrapper {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+      }
+      .panel { max-height: 45vh; }
+      .lens-overlay { width: 320px; height: 170px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app-wrapper">
+
+    <!-- ═══ HEADER ═══════════════════════════════════ -->
+    <header>
+      <div class="logo">&#128083;</div>
+      <div>
+        <h1>VR Headset Visual Adjustment</h1>
+        <div class="subtitle">Eye Power Correction Simulator &mdash; Young Innovators STEM Lab</div>
+      </div>
+    </header>
+
+    <!-- ═══ SIDE PANEL ═══════════════════════════════ -->
+    <aside class="panel" id="panel">
+
+      <!-- Condition Toggle -->
+      <div class="card">
+        <div class="card-title">Eye Condition</div>
+        <div class="toggle-group" id="conditionToggle">
+          <button class="toggle-btn active-myopia" data-type="myopia" id="btnMyopia">&#8722; Myopia</button>
+          <button class="toggle-btn" data-type="hypermetropia" id="btnHyper">&#43; Hypermetropia</button>
+        </div>
+      </div>
+
+      <!-- Power Slider (combined) -->
+      <div class="card" id="combinedCard">
+        <div class="card-title">Diopter Power (Both Eyes)</div>
+        <div class="power-display">
+          <span class="power-value myopia-color" id="powerDisplay">0.00</span><span class="power-unit">D</span>
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-labels"><span>−10.0</span><span>0</span><span>+10.0</span></div>
+          <input type="range" id="powerSlider" min="-10" max="10" step="0.25" value="0" />
+        </div>
+        <div class="manual-input-row">
+          <input type="number" id="powerInput" min="-10" max="10" step="0.25" value="0" placeholder="Enter power" />
+          <span>D</span>
+        </div>
+      </div>
+
+      <!-- Separate Eyes Card (hidden by default) -->
+      <div class="card" id="separateCard" style="display:none;">
+        <div class="card-title">Diopter Power (Per Eye)</div>
+
+        <!-- Left eye -->
+        <div class="eye-section">
+          <div class="eye-header">
+            <span class="eye-dot left"></span> Left Eye
+            <span class="eye-badge" id="leftBadge">0.00 D</span>
+          </div>
+          <input type="range" id="leftSlider" min="-10" max="10" step="0.25" value="0" />
+          <div class="manual-input-row">
+            <input type="number" id="leftInput" min="-10" max="10" step="0.25" value="0" />
+            <span>D</span>
+          </div>
+        </div>
+
+        <!-- Right eye -->
+        <div class="eye-section" style="margin-top:12px;">
+          <div class="eye-header">
+            <span class="eye-dot right"></span> Right Eye
+            <span class="eye-badge" id="rightBadge">0.00 D</span>
+          </div>
+          <input type="range" id="rightSlider" min="-10" max="10" step="0.25" value="0" />
+          <div class="manual-input-row">
+            <input type="number" id="rightInput" min="-10" max="10" step="0.25" value="0" />
+            <span>D</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Separate-eye toggle & comfort -->
+      <div class="card">
+        <div class="card-title">Options</div>
+        <div class="switch-row">
+          <label>Separate L/R Eyes</label>
+          <div class="switch">
+            <input type="checkbox" id="separateToggle" />
+            <span class="slider-track"></span>
+          </div>
+        </div>
+        <div class="switch-row" style="margin-top:10px;">
+          <label>Comfort Mode</label>
+          <div class="switch">
+            <input type="checkbox" id="comfortToggle" />
+            <span class="slider-track"></span>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="btn btn-reset" id="btnReset">&#8634; Reset</button>
+        </div>
+      </div>
+
+      <!-- Live Parameters -->
+      <div class="card">
+        <div class="card-title">Live Parameters</div>
+        <div class="param-grid">
+          <div class="param-item">
+            <div class="param-label">Focal Length</div>
+            <div class="param-val" id="pFocal">50.0 mm</div>
+          </div>
+          <div class="param-item">
+            <div class="param-label">Lens Z-Shift</div>
+            <div class="param-val" id="pZ">0.00</div>
+          </div>
+          <div class="param-item">
+            <div class="param-label">Blur</div>
+            <div class="param-val" id="pBlur">0.0 px</div>
+          </div>
+          <div class="param-item">
+            <div class="param-label">Magnification</div>
+            <div class="param-val" id="pMag">1.000×</div>
+          </div>
+          <div class="param-item">
+            <div class="param-label">FoV Adjust</div>
+            <div class="param-val" id="pFov">0.0°</div>
+          </div>
+          <div class="param-item">
+            <div class="param-label">Sharpness</div>
+            <div class="param-val" id="pSharp">1.00</div>
+          </div>
+          <div class="param-item">
+            <div class="param-label">Depth of Field</div>
+            <div class="param-val" id="pDof">∞</div>
+          </div>
+          <div class="param-item">
+            <div class="param-label">Distortion Comp</div>
+            <div class="param-val" id="pDist">0.00</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ═══ 3D VIEWPORT ══════════════════════════════ -->
+    <section class="viewport" id="viewport">
+
+      <!-- Info bar -->
+      <div class="info-bar" id="infoBar">
+        Condition: <strong>Myopia</strong> &nbsp;|&nbsp; Power: <strong>0.00 D</strong>
+      </div>
+
+      <!-- Lens overlay -->
+      <div class="lens-overlay" id="lensOverlay">
+        <div class="lens-view" id="lensLeft">
+          <div class="lens-inner" id="lensInnerLeft"></div>
+          <div class="lens-label">L</div>
+        </div>
+        <div class="lens-view" id="lensRight">
+          <div class="lens-inner" id="lensInnerRight"></div>
+          <div class="lens-label">R</div>
+        </div>
+      </div>
+
+      <!-- Canvas for focal / blur simulation -->
+      <canvas id="focalCanvas"></canvas>
+
+      <!-- HUD -->
+      <div class="hud-overlay">
+        <div class="hud-chip"><span class="dot"></span> Live Preview</div>
+        <div class="hud-chip" id="hudPower">0.00 D</div>
+      </div>
+
+      <!-- A-Frame scene -->
+      <a-scene embedded vr-mode-ui="enabled: false" renderer="antialias: true; colorManagement: true;" id="scene">
+
+        <!-- Sky -->
+        <a-sky color="#0d1120"></a-sky>
+
+        <!-- Ambient + directional lights -->
+        <a-entity light="type: ambient; color: #4a4a6a; intensity: 0.5"></a-entity>
+        <a-entity light="type: directional; color: #ffffff; intensity: 0.8" position="2 4 1"></a-entity>
+        <a-entity light="type: point; color: #6c63ff; intensity: 0.6; distance: 12" position="-2 2 -2" id="accentLight"></a-entity>
+
+        <!-- === VR HEADSET MODEL (composed from primitives) === -->
+        <a-entity id="headsetRig" position="0 1.6 -3.5" rotation="0 0 0">
+
+          <!-- Main headset body -->
+          <a-box id="headsetBody"
+            width="2.2" height="1.1" depth="1.0"
+            color="#1a1a2e"
+            material="roughness:0.4; metalness:0.6"
+            radius="0.08">
+          </a-box>
+
+          <!-- Front faceplate -->
+          <a-box
+            width="2.25" height="1.15" depth="0.08"
+            position="0 0 -0.52"
+            color="#16213e"
+            material="roughness:0.2; metalness:0.8">
+          </a-box>
+
+          <!-- Left lens housing -->
+          <a-cylinder id="lensHousingL"
+            radius="0.38" height="0.12"
+            position="-0.42 0 -0.48"
+            rotation="90 0 0"
+            color="#0f3460"
+            material="roughness:0.15; metalness:0.9">
+          </a-cylinder>
+
+          <!-- Left lens glass -->
+          <a-circle id="lensGlassL"
+            radius="0.32"
+            position="-0.42 0 -0.55"
+            color="#6c63ff"
+            material="opacity:0.35; transparent:true; side:double; emissive:#6c63ff; emissiveIntensity:0.3">
+          </a-circle>
+
+          <!-- Right lens housing -->
+          <a-cylinder id="lensHousingR"
+            radius="0.38" height="0.12"
+            position="0.42 0 -0.48"
+            rotation="90 0 0"
+            color="#0f3460"
+            material="roughness:0.15; metalness:0.9">
+          </a-cylinder>
+
+          <!-- Right lens glass -->
+          <a-circle id="lensGlassR"
+            radius="0.32"
+            position="0.42 0 -0.55"
+            color="#00d4ff"
+            material="opacity:0.35; transparent:true; side:double; emissive:#00d4ff; emissiveIntensity:0.3">
+          </a-circle>
+
+          <!-- Head strap top -->
+          <a-box
+            width="0.25" height="0.06" depth="1.8"
+            position="0 0.56 0.4"
+            color="#1a1a2e"
+            material="roughness:0.6; metalness:0.3">
+          </a-box>
+
+          <!-- Head strap sides -->
+          <a-box
+            width="0.06" height="0.25" depth="1.8"
+            position="-1.1 0.2 0.4"
+            color="#1a1a2e"
+            material="roughness:0.6; metalness:0.3">
+          </a-box>
+          <a-box
+            width="0.06" height="0.25" depth="1.8"
+            position="1.1 0.2 0.4"
+            color="#1a1a2e"
+            material="roughness:0.6; metalness:0.3">
+          </a-box>
+
+          <!-- Nose bridge -->
+          <a-box
+            width="0.3" height="0.2" depth="0.15"
+            position="0 -0.55 -0.35"
+            color="#16213e"
+            material="roughness:0.5; metalness:0.4"
+            radius="0.04">
+          </a-box>
+
+          <!-- Padding ring (face cushion) -->
+          <a-torus
+            position="0 0 0.35"
+            rotation="0 0 0"
+            radius="0.85"
+            radius-tubular="0.08"
+            color="#2c2c3e"
+            material="roughness:0.9; metalness:0.1"
+            segments-radial="6"
+            segments-tubular="24">
+          </a-torus>
+
+          <!-- IPD adjustment knob -->
+          <a-cylinder
+            radius="0.06" height="0.15"
+            position="0 0.58 -0.3"
+            color="#6c63ff"
+            material="roughness:0.3; metalness:0.7">
+          </a-cylinder>
+
+        </a-entity>
+
+        <!-- Floor grid -->
+        <a-entity
+          geometry="primitive: plane; width: 30; height: 30"
+          material="color: #0d1120; opacity: 0.5; transparent: true"
+          position="0 -0.5 -3"
+          rotation="-90 0 0">
+        </a-entity>
+
+        <!-- Grid lines (decorative) -->
+        <a-entity id="gridLines" position="0 -0.49 -3" rotation="-90 0 0">
+        </a-entity>
+
+        <!-- Particles / floating elements -->
+        <a-entity id="particles"></a-entity>
+
+        <!-- Camera -->
+        <a-entity id="cameraRig" position="0 1.6 1">
+          <a-camera fov="70" look-controls="enabled:true" wasd-controls="enabled:false" id="mainCam"></a-camera>
+        </a-entity>
+
+      </a-scene>
+    </section>
+  </div>
+
+  <!-- ═══ MAIN SCRIPT ═══════════════════════════════ -->
+  <script>
+  (function () {
+    'use strict';
+
+    /* ── DOM refs ─────────────────────────────────── */
+    const $ = id => document.getElementById(id);
+
+    const btnMyopia   = $('btnMyopia');
+    const btnHyper    = $('btnHyper');
+    const powerSlider = $('powerSlider');
+    const powerInput  = $('powerInput');
+    const powerDisp   = $('powerDisplay');
+    const separateToggle = $('separateToggle');
+    const comfortToggle  = $('comfortToggle');
+    const btnReset    = $('btnReset');
+
+    const combinedCard  = $('combinedCard');
+    const separateCard  = $('separateCard');
+    const leftSlider    = $('leftSlider');
+    const leftInput     = $('leftInput');
+    const leftBadge     = $('leftBadge');
+    const rightSlider   = $('rightSlider');
+    const rightInput    = $('rightInput');
+    const rightBadge    = $('rightBadge');
+
+    /* params */
+    const pFocal = $('pFocal');
+    const pZ     = $('pZ');
+    const pBlur  = $('pBlur');
+    const pMag   = $('pMag');
+    const pFov   = $('pFov');
+    const pSharp = $('pSharp');
+    const pDof   = $('pDof');
+    const pDist  = $('pDist');
+
+    /* viewport */
+    const infoBar    = $('infoBar');
+    const hudPower   = $('hudPower');
+    const lensOverlay = $('lensOverlay');
+    const lensInnerL = $('lensInnerLeft');
+    const lensInnerR = $('lensInnerRight');
+    const focalCanvas = $('focalCanvas');
+    const ctx = focalCanvas.getContext('2d');
+
+    /* A-Frame refs (resolved after scene loads) */
+    let headsetRig, lensGlassL, lensGlassR, accentLight, mainCam;
+
+    /* ── State ────────────────────────────────────── */
+    let state = {
+      condition: 'myopia',   // 'myopia' | 'hypermetropia'
+      power: 0,              // combined
+      leftPower: 0,
+      rightPower: 0,
+      separate: false,
+      comfort: false,
+    };
+
+    /* ── Constants ────────────────────────────────── */
+    const BASE_Z        = -3.5;
+    const Z_FACTOR      = 0.06;
+    const BASE_FOCAL     = 50;
+    const FOCAL_FACTOR   = 3.5;
+    const BLUR_SCALE     = 1.8;
+    const MAG_FACTOR     = 0.012;
+    const FOV_FACTOR     = 0.6;
+    const SHARP_BASE     = 1.0;
+    const SHARP_FACTOR   = 0.06;
+    const DOF_BASE       = 100;
+    const DOF_FACTOR     = 8;
+    const DIST_FACTOR    = 0.015;
+    const COMFORT_DAMP   = 0.5;   // reduce effect in comfort mode
+    const LENS_Z_BASE_L  = -0.55;
+    const LENS_Z_BASE_R  = -0.55;
+    const LENS_SHIFT     = 0.035;
+
+    /* ── Init scene refs ──────────────────────────── */
+    function initSceneRefs() {
+      headsetRig = $('headsetRig');
+      lensGlassL = $('lensGlassL');
+      lensGlassR = $('lensGlassR');
+      accentLight = $('accentLight');
+      mainCam     = $('mainCam');
+    }
+
+    /* ── Helpers ──────────────────────────────────── */
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function fmt(v, d = 2) { return v.toFixed(d); }
+
+    function effectivePower(raw) {
+      return state.comfort ? raw * COMFORT_DAMP : raw;
+    }
+
+    /* ── Compute Parameters ───────────────────────── */
+    function computeParams(pwr) {
+      const p = effectivePower(pwr);
+      const lensZ      = p * Z_FACTOR;                        // + forward, - backward
+      const focalLen   = clamp(BASE_FOCAL - p * FOCAL_FACTOR, 15, 120);
+      const blur       = Math.abs(p) * BLUR_SCALE;
+      const mag        = 1 + p * MAG_FACTOR;                  // >1 magnify, <1 minify
+      const fovAdj     = -p * FOV_FACTOR;
+      const sharpness  = clamp(SHARP_BASE - Math.abs(p) * SHARP_FACTOR, 0.1, 1.0);
+      const dof        = clamp(DOF_BASE - Math.abs(p) * DOF_FACTOR, 10, 100);
+      const distComp   = p * DIST_FACTOR;
+      return { lensZ, focalLen, blur, mag, fovAdj, sharpness, dof, distComp };
+    }
+
+    /* ── Update Everything ────────────────────────── */
+    function update() {
+      const useSep = state.separate;
+      const pL = useSep ? state.leftPower  : state.power;
+      const pR = useSep ? state.rightPower : state.power;
+
+      const paramsL = computeParams(pL);
+      const paramsR = computeParams(pR);
+
+      // Average for headset body movement
+      const avg = {
+        lensZ:     (paramsL.lensZ     + paramsR.lensZ)     / 2,
+        focalLen:  (paramsL.focalLen  + paramsR.focalLen)  / 2,
+        blur:      (paramsL.blur      + paramsR.blur)      / 2,
+        mag:       (paramsL.mag       + paramsR.mag)       / 2,
+        fovAdj:    (paramsL.fovAdj    + paramsR.fovAdj)    / 2,
+        sharpness: (paramsL.sharpness + paramsR.sharpness) / 2,
+        dof:       (paramsL.dof       + paramsR.dof)       / 2,
+        distComp:  (paramsL.distComp  + paramsR.distComp)  / 2,
+      };
+
+      /* ── Headset 3D transforms ─────────────────── */
+      if (headsetRig) {
+        // X-axis: minor horizontal correction based on L/R difference
+        const xShift = (paramsL.lensZ - paramsR.lensZ) * 0.5;
+        // Y-axis: slight vertical shift proportional to absolute power
+        const yShift = Math.abs(avg.lensZ) * 0.08;
+        // Z-axis: focal depth shift
+        const zPos = BASE_Z + avg.lensZ;
+
+        headsetRig.setAttribute('position', `${fmt(xShift, 3)} ${fmt(1.6 + yShift, 3)} ${fmt(zPos, 3)}`);
+
+        // Subtle rotation wobble based on power for visual feedback
+        const rotY = avg.distComp * 30;
+        headsetRig.setAttribute('rotation', `0 ${fmt(rotY, 2)} 0`);
+      }
+
+      /* ── Individual lens Z positions ───────────── */
+      if (lensGlassL) {
+        const lzL = LENS_Z_BASE_L - paramsL.lensZ * LENS_SHIFT * 10;
+        lensGlassL.setAttribute('position', `-0.42 0 ${fmt(lzL, 3)}`);
+        // Emissive intensity based on power
+        const intL = 0.3 + Math.abs(effectivePower(pL)) * 0.07;
+        lensGlassL.setAttribute('material', `opacity:${clamp(0.25 + Math.abs(effectivePower(pL)) * 0.04, 0.25, 0.7)}; transparent:true; side:double; emissive:${state.condition === 'myopia' ? '#ff4d6d' : '#00d4ff'}; emissiveIntensity:${fmt(clamp(intL, 0.1, 1), 2)}`);
+      }
+      if (lensGlassR) {
+        const lzR = LENS_Z_BASE_R - paramsR.lensZ * LENS_SHIFT * 10;
+        lensGlassR.setAttribute('position', `0.42 0 ${fmt(lzR, 3)}`);
+        const intR = 0.3 + Math.abs(effectivePower(pR)) * 0.07;
+        lensGlassR.setAttribute('material', `opacity:${clamp(0.25 + Math.abs(effectivePower(pR)) * 0.04, 0.25, 0.7)}; transparent:true; side:double; emissive:${state.condition === 'myopia' ? '#ff4d6d' : '#00d4ff'}; emissiveIntensity:${fmt(clamp(intR, 0.1, 1), 2)}`);
+      }
+
+      /* ── Accent light color ────────────────────── */
+      if (accentLight) {
+        accentLight.setAttribute('light', `type:point; color:${state.condition === 'myopia' ? '#ff4d6d' : '#00d4ff'}; intensity:${0.4 + Math.abs(avg.lensZ) * 0.3}; distance:12`);
+      }
+
+      /* ── Camera FoV tweak ──────────────────────── */
+      if (mainCam) {
+        mainCam.setAttribute('fov', clamp(70 + avg.fovAdj, 55, 90));
+      }
+
+      /* ── UI Parameter Readouts ─────────────────── */
+      pFocal.textContent = fmt(avg.focalLen, 1) + ' mm';
+      pZ.textContent     = fmt(avg.lensZ, 3);
+      pBlur.textContent  = fmt(avg.blur, 1) + ' px';
+      pMag.textContent   = fmt(avg.mag, 3) + '×';
+      pFov.textContent   = (avg.fovAdj >= 0 ? '+' : '') + fmt(avg.fovAdj, 1) + '°';
+      pSharp.textContent = fmt(avg.sharpness, 2);
+      pDof.textContent   = avg.dof > 95 ? '∞' : fmt(avg.dof, 0) + ' cm';
+      pDist.textContent  = fmt(avg.distComp, 3);
+
+      /* ── Info bar ──────────────────────────────── */
+      const condLabel = state.condition === 'myopia' ? 'Myopia' : 'Hypermetropia';
+      if (useSep) {
+        infoBar.innerHTML = `Condition: <strong>${condLabel}</strong> &nbsp;|&nbsp; L: <strong>${fmt(pL)} D</strong> &nbsp; R: <strong>${fmt(pR)} D</strong>`;
+        hudPower.textContent = `L ${fmt(pL)} / R ${fmt(pR)} D`;
+      } else {
+        infoBar.innerHTML = `Condition: <strong>${condLabel}</strong> &nbsp;|&nbsp; Power: <strong>${fmt(state.power)} D</strong>`;
+        hudPower.textContent = `${fmt(state.power)} D`;
+      }
+
+      /* ── Lens overlay CSS ──────────────────────── */
+      updateLensOverlay(paramsL, paramsR);
+
+      /* ── Focal canvas ──────────────────────────── */
+      drawFocalSim(paramsL, paramsR);
+    }
+
+    /* ── Lens overlay visual ─────────────────────── */
+    function updateLensOverlay(pL, pR) {
+      const scaleL = clamp(pL.mag, 0.85, 1.18);
+      const scaleR = clamp(pR.mag, 0.85, 1.18);
+      const blurL  = clamp(pL.blur * 0.6, 0, 8);
+      const blurR  = clamp(pR.blur * 0.6, 0, 8);
+
+      const tintColor = state.condition === 'myopia'
+        ? `rgba(255,77,109,${clamp(Math.abs(effectivePower(state.power)) * 0.02, 0, 0.15)})`
+        : `rgba(0,212,255,${clamp(Math.abs(effectivePower(state.power)) * 0.02, 0, 0.15)})`;
+
+      lensInnerL.style.transform = `scale(${scaleL})`;
+      lensInnerR.style.transform = `scale(${scaleR})`;
+      lensInnerL.style.filter = `blur(${blurL}px)`;
+      lensInnerR.style.filter = `blur(${blurR}px)`;
+      lensInnerL.style.background = `radial-gradient(circle, ${tintColor} 30%, rgba(0,0,0,${0.3 + blurL * 0.05}) 100%)`;
+      lensInnerR.style.background = `radial-gradient(circle, ${tintColor} 30%, rgba(0,0,0,${0.3 + blurR * 0.05}) 100%)`;
+
+      // Border glow
+      const bc = state.condition === 'myopia' ? '255,77,109' : '0,212,255';
+      const glowStrength = clamp(Math.abs(effectivePower(state.power)) * 0.06, 0, 0.5);
+      $('lensLeft').style.borderColor  = `rgba(${bc},${0.2 + glowStrength})`;
+      $('lensRight').style.borderColor = `rgba(${bc},${0.2 + glowStrength})`;
+      $('lensLeft').style.boxShadow  = `0 0 ${10 + glowStrength * 40}px rgba(${bc},${glowStrength * 0.4})`;
+      $('lensRight').style.boxShadow = `0 0 ${10 + glowStrength * 40}px rgba(${bc},${glowStrength * 0.4})`;
+    }
+
+    /* ── Focal depth simulation on canvas ─────────── */
+    function drawFocalSim(pL, pR) {
+      const w = focalCanvas.width  = focalCanvas.offsetWidth;
+      const h = focalCanvas.height = focalCanvas.offsetHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      const avgBlur = (pL.blur + pR.blur) / 2;
+      if (avgBlur < 0.3) return; // no distortion when near zero
+
+      // Vignette effect keyed to blur
+      const intensity = clamp(avgBlur / 18, 0, 0.45);
+      const gradient = ctx.createRadialGradient(w / 2, h / 2, w * 0.15, w / 2, h / 2, w * 0.65);
+      gradient.addColorStop(0, `rgba(0,0,0,0)`);
+      gradient.addColorStop(1, `rgba(0,0,0,${intensity})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+
+      // Barrel/pincushion distortion lines
+      const lineColor = state.condition === 'myopia' ? 'rgba(255,77,109,' : 'rgba(0,212,255,';
+      const lineAlpha = clamp(avgBlur * 0.02, 0, 0.15);
+      ctx.strokeStyle = lineColor + lineAlpha + ')';
+      ctx.lineWidth = 1;
+
+      const distAmt = (pL.distComp + pR.distComp) / 2;
+      const cx = w / 2, cy = h / 2;
+      const rings = 6;
+      for (let i = 1; i <= rings; i++) {
+        const r = (i / rings) * Math.min(w, h) * 0.45;
+        ctx.beginPath();
+        for (let a = 0; a <= Math.PI * 2; a += 0.05) {
+          const distR = r + Math.sin(a * 3) * distAmt * r * 8;
+          const x = cx + Math.cos(a) * distR;
+          const y = cy + Math.sin(a) * distR;
+          a === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+
+    /* ── Condition toggle ─────────────────────────── */
+    function setCondition(cond) {
+      state.condition = cond;
+      if (cond === 'myopia') {
+        btnMyopia.className = 'toggle-btn active-myopia';
+        btnHyper.className  = 'toggle-btn';
+        // Ensure power is negative or zero
+        if (state.power > 0) {
+          state.power = -state.power;
+          syncSliderAndInput(state.power);
+        }
+        powerSlider.max = '0'; powerSlider.min = '-10';
+        leftSlider.max = '0'; leftSlider.min = '-10';
+        rightSlider.max = '0'; rightSlider.min = '-10';
+        powerDisp.className = 'power-value myopia-color';
+      } else {
+        btnHyper.className  = 'toggle-btn active-hyper';
+        btnMyopia.className = 'toggle-btn';
+        if (state.power < 0) {
+          state.power = -state.power;
+          syncSliderAndInput(state.power);
+        }
+        powerSlider.min = '0'; powerSlider.max = '10';
+        leftSlider.min = '0'; leftSlider.max = '10';
+        rightSlider.min = '0'; rightSlider.max = '10';
+        powerDisp.className = 'power-value hyper-color';
+      }
+      update();
+    }
+
+    btnMyopia.addEventListener('click', () => setCondition('myopia'));
+    btnHyper.addEventListener('click', () => setCondition('hypermetropia'));
+
+    /* ── Sync slider <-> input ────────────────────── */
+    function syncSliderAndInput(val) {
+      state.power = clamp(val, -10, 10);
+      powerSlider.value = state.power;
+      powerInput.value  = state.power;
+      powerDisp.textContent = (state.power >= 0 ? '+' : '') + fmt(state.power);
+    }
+
+    powerSlider.addEventListener('input', () => {
+      syncSliderAndInput(parseFloat(powerSlider.value));
+      update();
+    });
+    powerInput.addEventListener('input', () => {
+      const v = parseFloat(powerInput.value);
+      if (!isNaN(v)) { syncSliderAndInput(v); update(); }
+    });
+
+    /* ── Separate eye sliders ─────────────────────── */
+    function syncLeft(val) {
+      state.leftPower = clamp(val, -10, 10);
+      leftSlider.value = state.leftPower;
+      leftInput.value  = state.leftPower;
+      leftBadge.textContent = (state.leftPower >= 0 ? '+' : '') + fmt(state.leftPower) + ' D';
+    }
+    function syncRight(val) {
+      state.rightPower = clamp(val, -10, 10);
+      rightSlider.value = state.rightPower;
+      rightInput.value  = state.rightPower;
+      rightBadge.textContent = (state.rightPower >= 0 ? '+' : '') + fmt(state.rightPower) + ' D';
+    }
+
+    leftSlider.addEventListener('input', () => { syncLeft(parseFloat(leftSlider.value)); update(); });
+    leftInput.addEventListener('input', () => { const v = parseFloat(leftInput.value); if (!isNaN(v)) { syncLeft(v); update(); } });
+    rightSlider.addEventListener('input', () => { syncRight(parseFloat(rightSlider.value)); update(); });
+    rightInput.addEventListener('input', () => { const v = parseFloat(rightInput.value); if (!isNaN(v)) { syncRight(v); update(); } });
+
+    /* ── Separate toggle ──────────────────────────── */
+    separateToggle.addEventListener('change', () => {
+      state.separate = separateToggle.checked;
+      combinedCard.style.display  = state.separate ? 'none' : '';
+      separateCard.style.display  = state.separate ? '' : 'none';
+      update();
+    });
+
+    /* ── Comfort mode ─────────────────────────────── */
+    comfortToggle.addEventListener('change', () => {
+      state.comfort = comfortToggle.checked;
+      update();
+    });
+
+    /* ── Reset ────────────────────────────────────── */
+    btnReset.addEventListener('click', () => {
+      state.power = 0; state.leftPower = 0; state.rightPower = 0;
+      state.comfort = false; state.separate = false;
+      comfortToggle.checked = false;
+      separateToggle.checked = false;
+      combinedCard.style.display = '';
+      separateCard.style.display = 'none';
+      syncSliderAndInput(0);
+      syncLeft(0); syncRight(0);
+      setCondition('myopia');
+      update();
+    });
+
+    /* ── Floating particles ───────────────────────── */
+    function createParticles() {
+      const container = $('particles');
+      if (!container) return;
+      for (let i = 0; i < 40; i++) {
+        const el = document.createElement('a-sphere');
+        const x = (Math.random() - 0.5) * 16;
+        const y = Math.random() * 6;
+        const z = -2 - Math.random() * 14;
+        const r = 0.015 + Math.random() * 0.03;
+        el.setAttribute('position', `${x} ${y} ${z}`);
+        el.setAttribute('radius', r);
+        el.setAttribute('color', Math.random() > 0.5 ? '#6c63ff' : '#00d4ff');
+        el.setAttribute('material', 'opacity:0.4; transparent:true');
+        el.setAttribute('animation', `property:position; to:${x + (Math.random() - 0.5) * 2} ${y + (Math.random() - 0.5) * 2} ${z}; dur:${3000 + Math.random() * 5000}; dir:alternate; loop:true; easing:easeInOutSine`);
+        container.appendChild(el);
+      }
+    }
+
+    /* ── Grid lines ───────────────────────────────── */
+    function createGrid() {
+      const g = $('gridLines');
+      if (!g) return;
+      for (let i = -15; i <= 15; i += 1) {
+        // along X
+        const lx = document.createElement('a-entity');
+        lx.setAttribute('line', `start: ${i} -15 0; end: ${i} 15 0; color: #1a2040; opacity: 0.3`);
+        g.appendChild(lx);
+        // along Y (Z)
+        const ly = document.createElement('a-entity');
+        ly.setAttribute('line', `start: -15 ${i} 0; end: 15 ${i} 0; color: #1a2040; opacity: 0.3`);
+        g.appendChild(ly);
+      }
+    }
+
+    /* ── Auto-rotate headset gently ───────────────── */
+    let autoRotAngle = 0;
+    let isInteracting = false;
+    function autoRotate() {
+      if (!headsetRig || isInteracting) { requestAnimationFrame(autoRotate); return; }
+      autoRotAngle += 0.15;
+      const baseRot = (computeParams(state.power).distComp) * 30;
+      const wobble = Math.sin(autoRotAngle * 0.02) * 3;
+      const yBob   = Math.sin(autoRotAngle * 0.015) * 0.03;
+      const curPos = headsetRig.getAttribute('position');
+      if (curPos) {
+        headsetRig.setAttribute('position', `${curPos.x} ${1.6 + yBob} ${curPos.z}`);
+      }
+      headsetRig.setAttribute('rotation', `${Math.sin(autoRotAngle * 0.01) * 2} ${baseRot + wobble} 0`);
+      requestAnimationFrame(autoRotate);
+    }
+
+    /* ── Boot ─────────────────────────────────────── */
+    const scene = $('scene');
+    if (scene) {
+      scene.addEventListener('loaded', () => {
+        initSceneRefs();
+        createParticles();
+        createGrid();
+        setCondition('myopia');
+        syncSliderAndInput(0);
+        update();
+        requestAnimationFrame(autoRotate);
+      });
+    }
+
+    /* Handle resize for focal canvas */
+    window.addEventListener('resize', () => { update(); });
+  })();
+  </script>
+</body>
+
+</html>
